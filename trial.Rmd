@@ -1,0 +1,162 @@
+---
+title: "Wholesale Customers Data Analysis"
+author: "Your Name"
+date: "`r Sys.Date()`"
+output: html_document
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This document presents an analysis of the Wholesale Customers dataset, focusing on data transformation, descriptive statistics, and relationships between variables.
+
+## Data Loading and Preparation
+
+```{r libraries}
+# Import necessary libraries
+library(tidyverse)
+library(tidyr)
+library(tidyselect)
+library(ggplot2)
+library(data.table)
+library(readxl)
+library(readr)
+library(psych)
+library(writexl)
+```
+
+```{r data_loading}
+# Reading the dataset
+wholesale <- read_excel("Wholesale_customers_data.xls")
+View(wholesale)
+
+# Checking dataset structure
+names(wholesale)
+dim(wholesale)  # 440 rows, 8 columns
+str(wholesale)
+glimpse(wholesale)
+```
+
+## A. Data Transformation and Anomaly Handling
+
+### Data Distribution Analysis
+
+```{r histograms}
+# Function to plot histograms for numeric columns
+Histogram <- function(wholesale) {
+  numeric_cols <- names(wholesale)[sapply(wholesale, is.numeric)] 
+  
+  par(mfrow = c(2, 2)) 
+  
+  for (col in numeric_cols) {
+    hist(wholesale[[col]], main = paste("Histogram of", col), 
+         xlab = col, col = "skyblue", border = "black")
+  }
+  
+  par(mfrow = c(1, 1))  
+}
+
+# Calling the function
+Histogram(wholesale)
+```
+
+### Missing Values Analysis
+
+```{r missing_values}
+# Checking for missing values
+missing_values <- sapply(wholesale, function(x) sum(is.na(x)))
+missing_values 
+```
+
+### Outlier Detection
+
+```{r outliers}
+# Function to detect outliers using boxplots
+outlier_boxplot <- function(wholesale) {
+  numeric_cols <- names(wholesale)[sapply(wholesale, is.numeric)] 
+  
+  par(mfrow = c(2, 2)) 
+  
+  for (col in numeric_cols) {
+    boxplot(wholesale[[col]], main = paste("Boxplot of", col), 
+         xlab = col, col = "skyblue", border = "black")
+  }
+  
+  par(mfrow = c(1, 1))  
+}
+
+# Calling the function
+outlier_boxplot(wholesale)
+```
+
+### Outlier Removal
+
+```{r remove_outliers}
+# Function to remove outliers
+remove_outliers <- function(wholesale, cols) {
+  for (col in cols) {
+    q1 <- quantile(wholesale[[col]], 0.25, na.rm = TRUE)
+    q3 <- quantile(wholesale[[col]], 0.75, na.rm = TRUE)
+    IQR <- q3 - q1
+    lower_bound <- q1 - 1.5 * IQR
+    upper_bound <- q3 + 1.5 * IQR
+    wholesale <- wholesale[wholesale[[col]] >= lower_bound & wholesale[[col]] <= upper_bound, ]
+  }
+  return(wholesale)
+}
+
+# Apply to numeric columns
+numeric_cols <- names(wholesale)[sapply(wholesale, is.numeric)]
+wholesale_cleaned <- remove_outliers(wholesale, numeric_cols)
+
+# Verify outlier removal
+outlier_boxplot(wholesale_cleaned)
+```
+
+## B. Save Transformed Dataset
+
+```{r save_data}
+# Save as R Dataframe
+save(wholesale_cleaned, file = "Q12.RData")
+
+# Save as Excel File
+write_xlsx(wholesale_cleaned, "Q12.xlsx")
+```
+
+## C. Descriptive Statistics
+
+```{r descriptive_stats}
+# Select four variables for analysis
+selected_vars <- wholesale_cleaned %>% 
+  select(Fresh, Milk, Grocery, Detergents_Paper)
+
+# Detailed descriptive statistics
+describe(selected_vars)
+
+# Summary statistics
+summary(selected_vars)
+```
+
+## D. Relationship Between Continuous Variables
+
+```{r correlation}
+# Correlation test between Milk and Grocery
+cor_test <- cor.test(wholesale_cleaned$Milk, wholesale_cleaned$Grocery)
+print(cor_test)
+
+# Visualization
+ggplot(wholesale_cleaned, aes(x = Milk, y = Grocery)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red") +
+  ggtitle("Relationship between Milk and Grocery")
+```
+
+## E. Relationship Between Categorical and Continuous Variables
+
+```{r categorical_analysis}
+# Convert Region and Channel to factors
+wholesale_cleaned$Channel <- as.factor(wholesale_cleaned$Channel)
+wholesale_cleaned$Region <- as.factor(wholesale_cleaned$Region)
+``` 
